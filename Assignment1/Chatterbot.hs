@@ -1,3 +1,6 @@
+{-Assignment N1 Chatterbot-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use when" #-}
 module Chatterbot where
 import Utilities
 import System.Random
@@ -39,7 +42,7 @@ rulesApply = try . transformationsApply "*" reflect
 -- rulesApply = return id
 
 reflectString :: String -> String
-reflectString = try (flip lookup reflections)
+reflectString = try (`lookup` reflections)
 
 reflect :: Phrase -> Phrase
 reflect = map reflectString
@@ -81,7 +84,7 @@ prepare = reduce . words . map toLower . filter (not . flip elem ".,:;*!#%&|")
 
 rulesCompile :: [(String, [String])] -> BotBrain
 {- TO BE WRITTEN -} --torsdag
-rulesCompile x = map (map2 (prepare, map prepare)) x
+rulesCompile  = map (map2 (prepare, map prepare)) 
 
 
 --------------------------------------
