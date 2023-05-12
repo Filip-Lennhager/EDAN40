@@ -16,32 +16,41 @@ iter m = m # iter m >-> cons ! return []
 
 cons(a, b) = a:b
 
+-- Function (-#) discards the result of the first parser.
 (-#) :: Parser a -> Parser b -> Parser b
-m -# n = error "-# not implemented"
+m -# n = m # n >-> snd
 
+-- Function (#-) discards the result of the second parser.
 (#-) :: Parser a -> Parser b -> Parser a
-m #- n = error "#- not implemented"
+m #- n = m # n >-> fst
 
+-- Function spaces parses zero or more whitespace characters.
 spaces :: Parser String
-spaces =  error "spaces not implemented"
+spaces = iter (char ? isSpace)
 
 token :: Parser a -> Parser a
 token m = m #- spaces
 
+-- Function letter parses a single alphabetic character.
 letter :: Parser Char
-letter =  error "letter not implemented"
+letter = char ? isAlpha
 
 word :: Parser String
 word = token (letter # iter letter >-> cons)
 
+-- Function chars parses n characters.
 chars :: Int -> Parser String
-chars n =  error "chars not implemented"
+chars 0 = return []
+chars n = char # chars (n-1) >-> cons
+
 
 accept :: String -> Parser String
 accept w = (token (chars (length w))) ? (==w)
 
+-- Function require works like accept but uses err to provide a better error message in case of failure.
 require :: String -> Parser String
-require w  = error "require not implemented"
+require w = accept w ! err ("expecting " ++ w)
+--doesn't pass test
 
 lit :: Char -> Parser Char
 lit c = token char ? (==c)
