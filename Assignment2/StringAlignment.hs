@@ -31,8 +31,9 @@ newSimilarityScore xs ys = simScore (length xs) (length ys)
     simScoreTable = [[ simEntry i j | j <- [0..]] | i <- [0..] ]
 
     simEntry :: Int -> Int -> Int
-    simEntry 0 _ = 0
-    simEntry _ 0 = 0
+    simEntry 0 0 = 0
+    simEntry i 0 = i * scoreSpace
+    simEntry 0 j = j * scoreSpace
     simEntry i j = maximum [simScore (i-1) (j-1) + score (xs !! (i-1)) (ys !! (j-1)),
                             simScore i (j-1) + score (xs !! (i-1)) '-',
                             simScore (i-1) j + score '-' (ys !! (j-1))]
@@ -59,17 +60,33 @@ maximaBy valueFcn xs = filter (\x -> valueFcn x == maxValue) xs
 {-Computes all possible alignments, then uses maximaBy to select the ones with the maximum score.-}
 type AlignmentType = (String,String)
 
+--slow
 optAlignments :: String -> String -> [AlignmentType]
 optAlignments [] [] = [([], [])]
 optAlignments [] ys = [(replicate (length ys) '-', ys)]
 optAlignments xs [] = [(xs, replicate (length xs) '-')]
-optAlignments (x:xs) (y:ys) = maximaBy (uncurry similarityScore) alignments
+optAlignments (x:xs) (y:ys) = maximaBy sim (concat [attachHeads x y   $ optAlignments xs ys,
+                                                    attachHeads x '-' $ optAlignments xs (y:ys),
+                                                    attachHeads '-' y $ optAlignments (x:xs) ys])
+    where
+        sim :: (String, String) -> Int
+        sim ([], []) = 0  
+        sim ([], y) = scoreMismatch * length y  
+        sim (x, []) = scoreMismatch * length x
+        sim (x:xs, y:ys) = score x y + sim (xs, ys)
+
+--very slow        
+oldOptAlignments :: String -> String -> [AlignmentType]
+oldOptAlignments [] [] = [([], [])]
+oldOptAlignments [] ys = [(replicate (length ys) '-', ys)]
+oldOptAlignments xs [] = [(xs, replicate (length xs) '-')]
+oldOptAlignments (x:xs) (y:ys) = maximaBy (uncurry similarityScore) alignments
   where
-    alignments = concat [attachHeads x y $ optAlignments xs ys,
+    alignments = concat [attachHeads x y   $ optAlignments xs ys,
                         attachHeads x '-' $ optAlignments xs (y:ys),
                         attachHeads '-' y $ optAlignments (x:xs) ys]
 
-
+--fast
 newOptAlignments :: String -> String -> [AlignmentType]
 newOptAlignments xs ys = map (Bi.bimap reverse reverse) (snd (opt (length xs) (length ys)))
     where
