@@ -12,7 +12,8 @@ data Statement =
     If Expr.T Statement Statement |
     While Expr.T Statement |
     Read String |
-    Write Expr.T
+    Write Expr.T |
+    Comment String 
     deriving Show
 
 -- Parsing functions
@@ -30,6 +31,8 @@ readSt :: Parser Statement
 readSt = accept "read" -# word #- require ";" >-> Read
 write :: Parser Statement
 write = accept "write" -# Expr.parse #- require ";" >-> Write
+comment :: Parser Statement
+comment =  accept "--"   -# whiteSpace #- require "\n" >-> Comment
 
 -- Builder functions
 buildAss :: (String, Expr.T) -> Statement
@@ -51,6 +54,7 @@ format ind (If cond thenStmt elseStmt) = indent ind ++ "if " ++ Expr.toString co
 format ind (While cond stmt)  = indent ind ++ "while " ++ Expr.toString cond ++ " do\n" ++ format (ind+1) stmt
 format ind (Read v)           = indent ind ++ "read " ++ v ++ ";\n"
 format ind (Write e)          = indent ind ++ "write " ++ Expr.toString e ++ ";\n"
+format ind (Comment s)        = indent ind ++ "-- " ++ s ++ "\n"
 
 exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
@@ -67,7 +71,10 @@ exec ((While cond stmt) : stmts) dict input =
     else exec stmts dict input
 exec (Read v : stmts) dict (i:input) = exec stmts (Dictionary.insert (v, i) dict) input
 exec (Write e : stmts) dict input = Expr.value e dict : exec stmts dict input
+exec (Comment _ : stmts) d i = exec stmts d i
 
 instance Parse Statement where
-  parse = assignment ! skip ! begin ! ifSt ! while ! readSt ! write
+  parse :: Parser Statement
+  parse = assignment ! skip ! begin ! ifSt ! while ! readSt ! write  ! comment
+  toString :: Statement -> String
   toString = format 0

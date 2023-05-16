@@ -28,7 +28,7 @@ import Parser hiding (T)
 import qualified Dictionary
 
 data Expr = Num Integer | Var String | Add Expr Expr 
-       | Sub Expr Expr | Mul Expr Expr | Div Expr Expr
+       | Sub Expr Expr | Mul Expr Expr | Div Expr Expr | Pow Expr Expr
          deriving Show
 
 type T = Expr
@@ -41,6 +41,8 @@ var = word >-> Var
 
 num = number >-> Num
 
+powOp = lit '^' >-> (\_ -> Pow) 
+
 mulOp = lit '*' >-> (\_ -> Mul) !
         lit '/' >-> (\_ -> Div)
 
@@ -49,11 +51,14 @@ addOp = lit '+' >-> (\_ -> Add) !
 
 bldOp e (oper,e') = oper e e'
 
-factor = num !
-         var !
-         lit '(' -# expr #- lit ')' !
-         err "illegal factor"
-             
+pow = num !
+        var !
+        lit '(' -# expr #- lit ')' !
+        err "illegal factor"
+
+factor' e = powOp # pow >-> bldOp e #> factor' ! return e
+factor = pow #> factor'
+
 term' e = mulOp # factor >-> bldOp e #> term' ! return e
 term = factor #> term'
        
@@ -69,6 +74,7 @@ shw prec (Add t u) = parens (prec>5) (shw 5 t ++ "+" ++ shw 5 u)
 shw prec (Sub t u) = parens (prec>5) (shw 5 t ++ "-" ++ shw 6 u)
 shw prec (Mul t u) = parens (prec>6) (shw 6 t ++ "*" ++ shw 6 u)
 shw prec (Div t u) = parens (prec>6) (shw 6 t ++ "/" ++ shw 7 u)
+shw prec (Pow t u) = parens (prec>7) (shw 8 t ++ "^" ++ shw 7 u)
 
 value :: Expr -> Dictionary.T String Integer -> Integer
 value (Num n) _ = n
@@ -81,7 +87,10 @@ value (Mul e1 e2) dict = value e1 dict * value e2 dict
 value (Div e1 e2) dict = let v2 = value e2 dict
                          in if v2 == 0 then error "Division by zero"
                             else value e1 dict `div` v2
+value (Pow e1 e2) dict = value e1 dict ^ value e2 dict
 
 instance Parse Expr where
+    parse :: Parser Expr
     parse = expr
+    toString :: Expr -> String
     toString = shw 0

@@ -1,6 +1,6 @@
 module Parser(module CoreParser, T, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
-              spaces, word, (-#), (#-)) where
+              spaces, word, (-#), (#-), whiteSpace) where
 import Prelude hiding (return, fail)
 import Data.Char
 import CoreParser
@@ -50,7 +50,7 @@ accept w = (token (chars (length w))) ? (==w)
 -- Function require works like accept but uses err to provide a better error message in case of failure.
 require :: String -> Parser String
 require w = accept w ! err ("expecting " ++ w)
---doesn't pass test
+--doesn't pass test??
 
 lit :: Char -> Parser Char
 lit c = token char ? (==c)
@@ -66,4 +66,8 @@ number' n = digitVal #> (\ d -> number' (10*n+d))
           ! return n
 number :: Parser Integer
 number = token (digitVal #> number')
+
+--Consumes characters until reaching a newline,
+whiteSpace :: Parser String
+whiteSpace = iter $ char ? (/='\n')
 
