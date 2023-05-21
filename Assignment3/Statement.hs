@@ -18,21 +18,21 @@ data Statement =
 
 -- Parsing functions
 assignment :: Parser Statement
-assignment = word #- accept ":=" # Expr.parse #- require ";" >-> buildAss
+assignment = word #- accept ":=" #- ifComment # Expr.parse #- require ";" >-> buildAss
 skip :: Parser Statement
 skip = accept "skip" #- require ";" >-> \_ -> Skip
 begin :: Parser Statement
 begin = accept "begin" -# iter parse #- require "end" >-> Begin
 ifSt :: Parser Statement
-ifSt = accept "if" -# Expr.parse #- require "then" # parse #- require "else" # parse >-> buildIf
+ifSt = accept "if" -# Expr.parse # require "then" -# parse # require "else" -# parse >-> buildIf
 while :: Parser Statement
-while = accept "while" -# Expr.parse #- require "do" # (parse :: Parser Statement) >-> buildWhile
+while = accept "while" -# ifComment -# Expr.parse #- ifComment #- require "do" # parse >-> buildWhile
 readSt :: Parser Statement
-readSt = accept "read" -# word #- require ";" >-> Read
+readSt = accept "read" -# ifComment -# word #- require ";" >-> Read
 write :: Parser Statement
-write = accept "write" -# Expr.parse #- require ";" >-> Write
+write = accept "write" -# ifComment -# Expr.parse #- ifComment #- require ";" >-> Write
 comment :: Parser Statement
-comment =  accept "--"   -# whiteSpace #- require "\n" >-> Comment
+comment = accept "--" -# whiteSpace #- require "\n" >-> Comment
 
 -- Builder functions
 buildAss :: (String, Expr.T) -> Statement
@@ -75,6 +75,6 @@ exec (Comment _ : stmts) d i = exec stmts d i
 
 instance Parse Statement where
   parse :: Parser Statement
-  parse = assignment ! skip ! begin ! ifSt ! while ! readSt ! write  ! comment
+  parse = assignment ! skip ! begin ! ifSt ! while ! readSt ! write ! comment 
   toString :: Statement -> String
   toString = format 0

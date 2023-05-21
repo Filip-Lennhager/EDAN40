@@ -1,6 +1,6 @@
 module Parser(module CoreParser, T, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
-              spaces, word, (-#), (#-), whiteSpace) where
+              spaces, word, (-#), (#-), whiteSpace, ifComment) where
 import Prelude hiding (return, fail)
 import Data.Char
 import CoreParser
@@ -70,4 +70,17 @@ number = token (digitVal #> number')
 --Consumes characters until reaching a newline,
 whiteSpace :: Parser String
 whiteSpace = iter $ char ? (/='\n')
+
+removeLine :: Parser String
+removeLine = token whiteSpace
+
+
+-- Use for ignoring comments
+ifComment :: Parser String
+ifComment c
+    | isSpace $ head c    = spaces c
+    | take 2 c == "--"      = (removeLine -# ifComment) c
+    | otherwise             = accept "" c
+
+
 
