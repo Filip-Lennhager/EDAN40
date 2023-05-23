@@ -3,6 +3,7 @@ import Prelude hiding (return, fail)
 import Parser hiding (T)
 import qualified Dictionary
 import qualified Expr
+import Text.Read (Lexeme(String))
 
 type T = Statement
 data Statement =
@@ -12,13 +13,12 @@ data Statement =
     If Expr.T Statement Statement |
     While Expr.T Statement |
     Read String |
-    Write Expr.T |
-    Comment String 
+    Write Expr.T
     deriving Show
 
 -- Parsing functions
 assignment :: Parser Statement
-assignment = word #- accept ":=" #- ifComment # Expr.parse #- require ";" >-> buildAss
+assignment = word #- accept ":=" # Expr.parse #- require ";" >-> buildAss
 skip :: Parser Statement
 skip = accept "skip" #- require ";" >-> \_ -> Skip
 begin :: Parser Statement
@@ -26,13 +26,11 @@ begin = accept "begin" -# iter parse #- require "end" >-> Begin
 ifSt :: Parser Statement
 ifSt = accept "if" -# Expr.parse # require "then" -# parse # require "else" -# parse >-> buildIf
 while :: Parser Statement
-while = accept "while" -# ifComment -# Expr.parse #- ifComment #- require "do" # parse >-> buildWhile
+while = accept "while" -# Expr.parse #- require "do" # parse >-> buildWhile
 readSt :: Parser Statement
-readSt = accept "read" -# ifComment -# word #- require ";" >-> Read
+readSt = accept "read" -# word #- require ";" >-> Read
 write :: Parser Statement
-write = accept "write" -# ifComment -# Expr.parse #- ifComment #- require ";" >-> Write
-comment :: Parser Statement
-comment = accept "--" -# whiteSpace #- require "\n" >-> Comment
+write = accept "write" -# Expr.parse #- require ";" >-> Write
 
 -- Builder functions
 buildAss :: (String, Expr.T) -> Statement
@@ -54,7 +52,6 @@ format ind (If cond thenStmt elseStmt) = indent ind ++ "if " ++ Expr.toString co
 format ind (While cond stmt)  = indent ind ++ "while " ++ Expr.toString cond ++ " do\n" ++ format (ind+1) stmt
 format ind (Read v)           = indent ind ++ "read " ++ v ++ ";\n"
 format ind (Write e)          = indent ind ++ "write " ++ Expr.toString e ++ ";\n"
-format ind (Comment s)        = indent ind ++ "-- " ++ s ++ "\n"
 
 exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
@@ -71,10 +68,20 @@ exec ((While cond stmt) : stmts) dict input =
     else exec stmts dict input
 exec (Read v : stmts) dict (i:input) = exec stmts (Dictionary.insert (v, i) dict) input
 exec (Write e : stmts) dict input = Expr.value e dict : exec stmts dict input
-exec (Comment _ : stmts) d i = exec stmts d i
+
+-- Removes comments from program string
+stripComments :: String -> String
+stripComments [] = []
+stripComments ('-': '-': xs) = strip xs
+    where
+        strip :: String -> String
+        strip [] = []
+        strip ('\n': xs) = stripComments xs
+        strip (_:xs) = strip xs
+stripComments (x:xs) = x : stripComments xs
 
 instance Parse Statement where
   parse :: Parser Statement
-  parse = assignment ! skip ! begin ! ifSt ! while ! readSt ! write ! comment 
+  parse = (assignment ! skip ! begin ! ifSt ! while ! readSt ! write) . stripComments
   toString :: Statement -> String
   toString = format 0
